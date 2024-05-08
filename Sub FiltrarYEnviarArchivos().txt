@@ -1,0 +1,128 @@
+Sub FiltrarYEnviarArchivos()
+    Dim ws As Worksheet
+    Dim uniqueValues As Collection
+    Dim value As Variant
+    Dim newWorkbook As Workbook
+    Dim newWorksheet As Worksheet
+    Dim OutlookApp As Object
+    Dim OutlookMail As Object
+    Dim subject As String
+    Dim body As String
+    Dim recipientEmail As String
+    Dim savePath As String
+    Dim FechaActual As Date
+    
+    FechaActual = Date
+
+    ' Definir la carpeta de destino para guardar los archivos
+    savePath = "D:\DATOS\Users\" ' Reemplaza con la ruta deseada
+
+    ' Verificar si la carpeta de destino existe, de lo contrario, crearla
+    If Dir(savePath, vbDirectory) = "" Then
+        MkDir savePath
+    End If
+    
+    InformacionCelda = ThisWorkbook.Sheets("Estructura Reporte").Range("P2").value
+
+    ' Definir la hoja de trabajo
+    Set ws = ThisWorkbook.Sheets("Estructura Reporte")
+
+    ' Crear una colección para almacenar valores únicos en la columna A
+    Set uniqueValues = New Collection
+
+    On Error Resume Next
+    For Each value In ws.Range("A2:A" & ws.Cells(ws.Rows.Count, "A").End(xlUp).Row).value
+        uniqueValues.Add value, CStr(value)
+    Next value
+    On Error GoTo 0
+
+    ' Inicializar la aplicación Outlook
+    Set OutlookApp = CreateObject("Outlook.Application")
+
+    ' Iterar a través de los valores únicos en la columna A
+    For Each value In uniqueValues
+        ' Definir el valor actual
+        criteria = value
+
+        ' Aplicar el filtro en la columna A
+        ws.UsedRange.AutoFilter Field:=1, Criteria1:=criteria
+
+        ' Crear un nuevo libro y copiar los datos filtrados
+        Set newWorkbook = Workbooks.Add
+        Set newWorksheet = newWorkbook.Sheets(1)
+        ws.UsedRange.SpecialCells(xlCellTypeVisible).Copy Destination:=newWorksheet.Range("A1")
+
+        ' Guardar el archivo con el nombre del valor en la columna A
+        newWorkbook.SaveAs savePath & "\" & criteria & ".xlsx" ' Nombre del archivo
+
+        ' Definir el asunto y el cuerpo del correo
+        subject = " DEPURACION DEPOSITOS " & InformacionCelda & " " & criteria & " " & FechaActual
+    body = "Buena Día," & vbLf & vbLf & _
+           "Solicitamos de su ayuda con la gestión de aplicación para los depósitos relacionados en el archivo adjunto, por favor tener en cuenta que el monto del detalle de aplicación no puede ser superior al monto disponible en depósitos." & vbLf & vbLf & _
+           "Pueden validar también en la siguiente ruta los depósitos pendientes por aplicar: 
+           "Los recaudos están pendientes por aplicar para el indicador del mes en curso, estos deben ser depurados antes del cierre contable 27 del mes Actual" & vbLf & vbLf & _
+           "Nota Importante: Si nuestros clientes realizan los pagos de manera fácil y rápida a través del Portal del Pagos o con el formato de recaudo en las entidades bancarias autorizadas, se aplican de forma automática y no es necesario realizar trámites adicionales para la aplicación."
+        ' Establecer el destinatario de acuerdo al valor en la celda A
+        Select Case criteria
+            Case "BANCASEGUROS"
+                recipientEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com;"
+                copiEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+            Case "CARTERA"
+                recipientEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+                copiEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+            Case "COASEGURO"
+                recipientEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+                copiEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+            Case "COASEGURO-SINIESTROS"
+                recipientEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+                copiEmail = "rafael.montoya@axacolpatria.co;recaudosgenerales@axacolpatria.co"
+            Case "OPERACIONES ALIANZAS"
+                recipientEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+                copiEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+            Case "SOAT BOLETA"
+                recipientEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+                copiEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+            Case "SOAT DIGITAL"
+                recipientEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+                copiEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+            Case "RECAUDOS - Cod Barras"
+                recipientEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com;"
+                copiEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+            Case "RECAUDOS - CONTACTO 3ros"
+                recipientEmail = "diana.garciag@axacolpatria.co"
+                copiEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+            Case "RECAUDOS ESTATALES"
+                recipientEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+                copiEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+            Case "RECAUDOS"
+                recipientEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+                copiEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+            Case Else
+                recipientEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com" ' Destinatario por defecto
+                copiEmail = "correo@ejemplo.co;juanparodriguezg30@gmail.com"
+        End Select
+
+        ' Crear un nuevo correo
+        Set OutlookMail = OutlookApp.CreateItem(0)
+        With OutlookMail
+            .To = recipientEmail
+            .CC = copiEmail
+            .subject = subject
+            .body = body
+
+            ' Adjuntar el archivo
+            .Attachments.Add newWorkbook.FullName
+            .Send
+        End With
+
+        ' Cerrar el nuevo libro y limpiar el filtro
+        newWorkbook.Close SaveChanges:=False
+        ws.AutoFilterMode = False
+    Next value
+
+    ' Limpiar el filtro en la hoja de trabajo
+    ws.AutoFilterMode = False
+    ' Eliminar todos los archivos de la carpeta
+    Kill savePath & "\*.*"
+End Sub
+
